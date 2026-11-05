@@ -1,0 +1,114 @@
+name: Lakehouse
+
+# Runs the Airflow DAG against real BTS data: finds the newest published month, loads only what is new into the
+# Delta Lake tables, rebuilds gold and republishes the dashboard. BTS publishes one month at a time, so a weekly
+# check is plenty. The Delta tables are kept between runs as a release asset.
+on:
+  schedule:
+    - cron: "17 9 * * 1" # Mondays 09:17 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reload_months:
+        description: "Months to re-load even if already present, e.g. 2025-03,2025-04 (optional)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write # save the lake as a release asset and commit README results
+  pages: write
+  id-token: write
+
+concurrency:
+  group: lakehouse
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LAKE_FORMAT: delta
+      FLIGHTS_DRIVER_MEMORY: 10g
+      AIRFLOW_HOME: ${{ github.workspace }}/airflow-home
+      AIRFLOW__CORE__DAGS_FOLDER: ${{ github.workspace }}/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.ivy2
+          key: ivy-delta-4.0.1-spark-4.0.5
+
+      - name: Test before touching real data
+        run: pytest -q
+
+      - name: Restore the lake from the last run
+        run: |
+          mkdir -p data
+          if gh release download lakehouse --pattern "lake.tar.zst" --dir data; then
+            tar -I zstd -xf data/lake.tar.zst -C data && rm data/lake.tar.zst
+            du -sh data/lake/*
+          else
+            echo "No saved lake yet: this run backfills 24 months from BTS (takes longer)."
+          fi
+
+      - name: Run the Airflow DAG (download, bronze, silver, validate, gold, optimize, publish)
+        run: |
+          airflow db migrate > /dev/null
+          python dags/flight_lakehouse.py
+        env:
+          FLIGHTS_RELOAD: ${{ inputs.reload_months }}
+
+      - name: Save the lake for the next run
+        run: |
+          tar -I "zstd -T0 -3" -cf lake.tar.zst -C data lake
+          ls -lh lake.tar.zst
+          gh release view lakehouse > /dev/null 2>&1 || gh release create lakehouse --latest=false \
+            --title "Delta Lake tables (updated weekly)" \
+            --notes "Bronze, silver, gold and ops Delta tables. Download, run 'tar -I zstd -xf lake.tar.zst', then read any table with Spark + Delta Lake or the deltalake Python package."
+          gh release upload lakehouse lake.tar.zst --clobber
+
+      - name: Commit README results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if ! git diff --staged --quiet; then
+            git commit -m "Lakehouse results: data through $(python -c 'import json;print(json.load(open("site/results.json"))["window"][1])')"
+            git pull --rebase
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
