@@ -1,0 +1,11 @@
+# Airflow is installed against its official constraints file so every transitive dependency is a tested version.
+-c https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.13.txt
+apache-airflow==3.3.2
+pyspark==4.0.5
+delta-spark==4.0.1
+requests==2.34.2
+cryptography==50.0.1
+pandas==3.0.5
+numpy==2.5.3
+pyarrow==25.0.1
+plotly==7.1.0

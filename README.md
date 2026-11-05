@@ -1,0 +1,88 @@
+# Flight Delay Lakehouse: PySpark, Delta Lake & Airflow
+
+[![CI](https://github.com/dvskaff/flight-delay-lakehouse/actions/workflows/ci.yml/badge.svg)](https://github.com/dvskaff/flight-delay-lakehouse/actions/workflows/ci.yml)
+[![Lakehouse](https://github.com/dvskaff/flight-delay-lakehouse/actions/workflows/pipeline.yml/badge.svg)](https://github.com/dvskaff/flight-delay-lakehouse/actions/workflows/pipeline.yml)
+![PySpark](https://img.shields.io/badge/PySpark-4.0-orange) ![Delta Lake](https://img.shields.io/badge/Delta%20Lake-4.0-blue)
+![Airflow](https://img.shields.io/badge/Airflow-3.3-teal) ![Python](https://img.shields.io/badge/python-3.13-blue)
+
+**Live dashboard: https://dvskaff.github.io/flight-delay-lakehouse/**
+
+A medallion (bronze → silver → gold) lakehouse of every domestic flight reported to the U.S. Bureau of
+Transportation Statistics (BTS), about 600,000 flights a month over a rolling 24 months. It's built with PySpark and
+Delta Lake and orchestrated by an Apache Airflow DAG that GitHub Actions runs every week. Each run finds the newest
+published month, loads only what is new, enforces data quality, and rebuilds the gold tables and the dashboard.
+
+## Results
+
+Rewritten automatically after every run.
+
+<!-- RESULTS:START -->
+_Results appear here after the first run of the **Lakehouse** workflow._
+<!-- RESULTS:END -->
+
+## Architecture
+
+```
+BTS transtats: one zip per month (newest month found by probing; schema-drift check on every file)
+      │
+      ▼  Airflow DAG `flight_lakehouse` (dags/flight_lakehouse.py), weekly
+ plan ──► ingest_month (mapped: one task per missing month) ──► build_silver ──► validate ──► build_gold ──► maintain ──► publish
+      │
+      ▼
+ BRONZE  bronze/flights        raw values as text + lineage (source file, load time), partitioned by month;
+                               a month is replaced atomically (replaceWhere), so re-loads are idempotent;
+                               only the last 3 months are kept (raw files can be re-downloaded)
+ SILVER  silver/flights        typed and renamed, 9 data-quality rules, de-duplicated on the natural key,
+                               MERGE upsert (insert new, update changed by row hash, delete vanished rows),
+                               Delta CHECK constraints, Z-ORDER by origin + carrier, rolling 24-month retention
+         silver/quarantine     rows that broke a hard rule, with the rule names
+ GOLD    carrier_month · airport_month · route_month · daily · hour_weekday · delay_causes ·
+         delay_propagation (tail-number rotations) · dim_carrier · dim_airport
+ OPS     load_log (one row per file) · dq_results (every rule, every load)
+      │
+      ▼
+ GitHub Pages dashboard + this README  ·  Delta tables saved as a release asset between runs
+```
+
+### Engineering details
+
+* **Incremental and idempotent.** The plan task compares the rolling window with the months already in silver and
+  loads only the missing ones. Any month can be re-loaded (`FLIGHTS_RELOAD=2025-03`) and the tables end up the same:
+  the MERGE inserts, updates and deletes nothing.
+* **Data quality as a gate.** Hard rules (keys present, origin ≠ destination, valid times, positive distance, date
+  inside the file's month) send rows to quarantine, and the load stops before touching silver if more than 1% fail.
+  Warning rules (cancelled flights have a reason, delay causes add up, plausible delays) are counted and shown.
+  After every write, validation checks key uniqueness, the window and row-count reconciliation from bronze to silver.
+* **Delta Lake features used:** ACID MERGE with `whenNotMatchedBySourceDelete`, `replaceWhere` partition overwrites,
+  CHECK constraints, OPTIMIZE + Z-ORDER on the partitions written this run, VACUUM, table history (shown on the
+  dashboard) and time travel.
+* **Delay propagation.** A window function follows each aircraft (tail number) through its day and links every
+  departure to the same plane's previous arrival.
+* **Tests.** pytest on synthetic BTS-format files covers the transformations, quality rules, gold definitions,
+  incremental runs, retention, idempotent re-loads and Delta constraint enforcement. It also runs the full Airflow DAG
+  end to end with `dag.test()`.
+
+## Repository layout
+
+```
+dags/flight_lakehouse.py   the Airflow DAG (also runnable directly: python dags/flight_lakehouse.py)
+src/flights/               config · spark (session) · source (BTS download) · lake (Delta storage layer)
+                           transform (bronze→silver, quality rules) · gold · pipeline (tasks) · report · readme
+                           fixture.py: SYNTHETIC files in the BTS layout for tests (pages built from it say so)
+tests/                     source, transformations, gold, pipeline runs, DAG structure and an end-to-end DAG run
+.github/workflows/         ci.yml (lint + tests on Delta) · pipeline.yml (weekly lakehouse run → GitHub Pages)
+```
+
+## Run it
+
+Everything runs in GitHub Actions (**Actions → Lakehouse → Run workflow**). Locally (needs Java 17+):
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q                                            # Parquet mode, fully offline
+LAKE_FORMAT=delta pytest -q                          # Delta mode (downloads the Delta jars from Maven once)
+airflow db migrate && python dags/flight_lakehouse.py  # real BTS data through the Airflow DAG
+```
+
+Data: U.S. Bureau of Transportation Statistics, Reporting Carrier On-Time Performance (public domain).
+Code: MIT license.
