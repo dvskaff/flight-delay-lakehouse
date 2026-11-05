@@ -17,7 +17,18 @@ published month, loads only what is new, enforces data quality, and rebuilds the
 Rewritten automatically after every run.
 
 <!-- RESULTS:START -->
-_Results appear here after the first run of the **Lakehouse** workflow._
+_BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run 2026-11-05 18:07 UTC_
+
+| Last 12 months | Value |
+|---|---|
+| Flights | 7,049,869 |
+| On-time arrivals (< 15 min late) | 77.3% (-2.1 pts vs. prior 12 months) |
+| Cancelled | 1.9% |
+| Most / least punctual carrier | Delta Air Lines 81.1% · JetBlue Airways 71.3% |
+| Share of delay minutes from late-arriving aircraft | 40% |
+| Next flight departs late after the plane arrived 60+ min late | 86% |
+
+**Lake:** 14 Delta tables · silver 24 files, 637 MB, 8 recent versions in the log · CHECK constraints: key_present, origin_not_dest, positive_distance, valid_schedule_time · months loaded this run: 2024-09, 2024-10, 2024-11, 2024-12, 2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06, 2025-07, 2025-08, 2025-09, 2025-10, 2025-11, 2025-12, 2026-01, 2026-02, 2026-03, 2026-04, 2026-05, 2026-06, 2026-07, 2026-08
 <!-- RESULTS:END -->
 
 ## Architecture
