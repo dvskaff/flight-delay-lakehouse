@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+site/
+spark-warehouse/
+metastore_db/
+derby.log
+airflow-home/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
