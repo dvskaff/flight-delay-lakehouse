@@ -70,6 +70,10 @@ jobs:
             echo "No saved lake yet: this run backfills 24 months from BTS (takes longer)."
           fi
 
+      # DuckDB compiled to WebAssembly, so visitors can query the gold tables in the browser (sql.html).
+      - name: Get the browser SQL runtime (DuckDB-WASM, from npm)
+        run: bash scripts/fetch_web_runtime.sh
+
       - name: Run the Airflow DAG (download, bronze, silver, validate, gold, optimize, publish)
         run: |
           airflow db migrate > /dev/null
@@ -93,7 +97,7 @@ jobs:
           git add README.md
           if ! git diff --staged --quiet; then
             git commit -m "Lakehouse results: data through $(python -c 'import json;print(json.load(open("site/results.json"))["window"][1])')"
-            git pull --rebase
+            git pull --rebase -X theirs
             git push
           fi
 
