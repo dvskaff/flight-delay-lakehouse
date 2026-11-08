@@ -11,3 +11,4 @@ airflow-home/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
+web/vendor/
