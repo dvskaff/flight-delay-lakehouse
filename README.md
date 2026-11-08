@@ -19,7 +19,7 @@ published month, loads only what is new, enforces data quality, and rebuilds the
 Rewritten automatically after every run.
 
 <!-- RESULTS:START -->
-_BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run 2026-11-08 18:47 UTC_
+_BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run 2026-11-08 19:05 UTC_
 
 | Last 12 months | Value |
 |---|---|
@@ -30,7 +30,7 @@ _BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run
 | Share of delay minutes from late-arriving aircraft | 40% |
 | Next flight departs late after the plane arrived 60+ min late | 86% |
 
-**Lake:** 14 Delta tables · silver 24 files, 637 MB, 10 recent versions in the log · CHECK constraints: key_present, origin_not_dest, positive_distance, valid_schedule_time · months loaded this run: none (no new BTS month)
+**Lake:** 14 Delta tables · silver 24 files, 637 MB, 12 recent versions in the log · CHECK constraints: key_present, origin_not_dest, positive_distance, valid_schedule_time · months loaded this run: none (no new BTS month)
 <!-- RESULTS:END -->
 
 ## Query it yourself
