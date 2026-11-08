@@ -32,6 +32,8 @@ class Config:
     data_dir: Path = field(default_factory=lambda: _env_path("FLIGHTS_DATA_DIR", ROOT / "data"))
     site_dir: Path = field(default_factory=lambda: _env_path("FLIGHTS_SITE_DIR", ROOT / "site"))
     readme_path: Path = field(default_factory=lambda: _env_path("FLIGHTS_README", ROOT / "README.md"))
+    # DuckDB-WASM for the in-browser SQL page (fetched from npm by scripts/fetch_web_runtime.sh)
+    vendor_dir: Path = field(default_factory=lambda: _env_path("FLIGHTS_VENDOR_DIR", ROOT / "web" / "vendor"))
 
     repo_url: str = "https://github.com/dvskaff/flight-delay-lakehouse"
     site_url: str = "https://dvskaff.github.io/flight-delay-lakehouse/"

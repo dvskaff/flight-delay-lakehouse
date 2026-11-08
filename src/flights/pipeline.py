@@ -175,10 +175,19 @@ def maintain(cfg: Config, months: list[str]) -> dict:
 
 # --------------------------------------------------------------------------- 7. publish
 def publish(cfg: Config, run: dict) -> dict:
+    from . import explore
     from .readme import update_readme
     from .report import build_site
 
-    summary = build_site(cfg, _lake(cfg), run)
+    lake = _lake(cfg)
+    summary = build_site(cfg, lake, run)
+    # SQL in the browser: the gold tables (and the newest month of flights) for DuckDB-WASM
+    meta = explore.export(lake, cfg.site_dir / "data")
+    runtime = explore.copy_runtime(cfg.vendor_dir, cfg.site_dir)
+    explore.write_page(cfg.site_dir, meta, summary["window"], runtime, cfg.repo_url, cfg.fixture)
+    summary["browser_sql"] = {"tables": len(meta), "runtime": runtime,
+                              "megabytes": round(sum(m["bytes"] for m in meta) / 1e6, 1)}  # fmt: skip
+    (cfg.site_dir / "results.json").write_text(json.dumps(summary, indent=2, default=str))
     if not cfg.fixture:
         update_readme(cfg.readme_path, summary)
     return {"site": str(cfg.site_dir / "index.html")}

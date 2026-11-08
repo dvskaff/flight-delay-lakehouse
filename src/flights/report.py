@@ -322,7 +322,8 @@ def build_site(cfg: Config, lake: Lake, run: dict) -> dict:
   <p>Every domestic flight by the largest U.S. airlines, from the Bureau of Transportation Statistics, loaded monthly
   into a bronze/silver/gold lakehouse built with PySpark and Delta Lake and orchestrated by Apache Airflow.
   {months[0]} to {months[-1]}.</p>
-  <a class="btn" href="{cfg.repo_url}">Code on GitHub</a><a class="btn" href="#lakehouse">How the lakehouse works</a>
+  <a class="btn" href="sql.html">Query the lakehouse (SQL in your browser)</a><a class="btn" href="#lakehouse">How the lakehouse works</a>
+  <a class="btn" href="{cfg.repo_url}">Code on GitHub</a>
 </div></header>
 <main>
 <div class="cards">{cards}</div>
@@ -362,6 +363,8 @@ next flight leaves late {_pct(prop.get("15–29 min"))} of the time; after an on
 <div class="box out"><b>This page</b>rebuilt by Airflow in GitHub Actions every week</div>
 </div>
 <p>{run_line}</p>
+<p><b>Query it yourself:</b> the <a href="sql.html">SQL page</a> loads every gold table and the newest month of flights
+into DuckDB running inside your browser, with example queries to start from.</p>
 <p><b>Validation:</b> {check_html or "–"}</p>
 <p class="muted">Delta CHECK constraints on silver: {con_html}. {travel_html}</p>
 {_table(["Layer", "Table", "Rows", "Files", "Size", "Version", "Last operation"], lake_rows, left_cols=2)}

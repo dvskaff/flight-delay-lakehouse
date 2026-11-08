@@ -5,7 +5,9 @@
 ![PySpark](https://img.shields.io/badge/PySpark-4.0-orange) ![Delta Lake](https://img.shields.io/badge/Delta%20Lake-4.0-blue)
 ![Airflow](https://img.shields.io/badge/Airflow-3.3-teal) ![Python](https://img.shields.io/badge/python-3.13-blue)
 
-**Live dashboard: https://dvskaff.github.io/flight-delay-lakehouse/**
+* **Dashboard:** [live results, updated weekly](https://dvskaff.github.io/flight-delay-lakehouse/)
+* **SQL:** [query the gold tables in your browser](https://dvskaff.github.io/flight-delay-lakehouse/sql.html)
+* **Data:** [the Delta tables, saved after every run](https://github.com/dvskaff/flight-delay-lakehouse/releases/tag/lakehouse)
 
 A medallion (bronze → silver → gold) lakehouse of every domestic flight reported to the U.S. Bureau of
 Transportation Statistics (BTS), about 600,000 flights a month over a rolling 24 months. It's built with PySpark and
@@ -31,7 +33,35 @@ _BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run
 **Lake:** 14 Delta tables · silver 24 files, 637 MB, 8 recent versions in the log · CHECK constraints: key_present, origin_not_dest, positive_distance, valid_schedule_time · months loaded this run: 2024-09, 2024-10, 2024-11, 2024-12, 2025-01, 2025-02, 2025-03, 2025-04, 2025-05, 2025-06, 2025-07, 2025-08, 2025-09, 2025-10, 2025-11, 2025-12, 2026-01, 2026-02, 2026-03, 2026-04, 2026-05, 2026-06, 2026-07, 2026-08
 <!-- RESULTS:END -->
 
+## Query it yourself
+
+The [SQL page](https://dvskaff.github.io/flight-delay-lakehouse/sql.html) loads every gold table, plus every flight of
+the newest month from silver, into DuckDB running inside your browser (DuckDB-WASM, served by the site itself, so
+nothing is sent to a server). Start from the examples (airlines ranked, best time of day to fly, one route month by
+month, the longest delays, why flights were cancelled, how delays snowball) or write your own. The files are
+re-exported from the Delta tables after every run, with the lake's column types and a description of every column.
+
 ## Architecture
+
+```mermaid
+flowchart LR
+    BTS["BTS monthly zip<br/>~600K flights"] -->|"Airflow DAG, weekly<br/>new months only"| BRONZE
+    subgraph LAKE["Delta Lake"]
+        BRONZE["Bronze<br/>raw text + lineage<br/>replaceWhere per month"] --> SILVER["Silver<br/>typed, 9 quality rules<br/>MERGE upsert, CHECK constraints"]
+        SILVER -->|"rows breaking<br/>hard rules"| Q["Quarantine"]
+        SILVER --> GOLD["Gold<br/>carrier, airport, route, daily,<br/>delay causes, propagation"]
+    end
+    GOLD --> DASH["Dashboard<br/>+ README results"]
+    GOLD --> SQL["SQL in the browser<br/>DuckDB-WASM"]
+    LAKE -->|"saved between runs"| REL["GitHub release asset"]
+
+    style BRONZE fill:#f6e7d8,stroke:#c98a4b,color:#0b0b0b
+    style SILVER fill:#e9ecef,stroke:#8a929a,color:#0b0b0b
+    style GOLD fill:#fbf0d0,stroke:#c9a227,color:#0b0b0b
+    style Q fill:#fbe3e1,stroke:#c4352b,color:#0b0b0b
+```
+
+<details><summary>Every task and table, step by step</summary>
 
 ```
 BTS transtats: one zip per month (newest month found by probing; schema-drift check on every file)
@@ -52,8 +82,11 @@ BTS transtats: one zip per month (newest month found by probing; schema-drift ch
  OPS     load_log (one row per file) · dq_results (every rule, every load)
       │
       ▼
- GitHub Pages dashboard + this README  ·  Delta tables saved as a release asset between runs
+ GitHub Pages dashboard + this README + sql.html (DuckDB-WASM on exported gold tables)
+ Delta tables saved as a release asset between runs
 ```
+
+</details>
 
 ### Engineering details
 
@@ -79,7 +112,9 @@ BTS transtats: one zip per month (newest month found by probing; schema-drift ch
 dags/flight_lakehouse.py   the Airflow DAG (also runnable directly: python dags/flight_lakehouse.py)
 src/flights/               config · spark (session) · source (BTS download) · lake (Delta storage layer)
                            transform (bronze→silver, quality rules) · gold · pipeline (tasks) · report · readme
+                           explore (exports gold for the browser and writes the SQL page)
                            fixture.py: SYNTHETIC files in the BTS layout for tests (pages built from it say so)
+scripts/                   fetch_web_runtime.sh: fetches DuckDB-WASM from npm and bundles it for the SQL page
 tests/                     source, transformations, gold, pipeline runs, DAG structure and an end-to-end DAG run
 .github/workflows/         ci.yml (lint + tests on Delta) · pipeline.yml (weekly lakehouse run → GitHub Pages)
 ```
