@@ -19,7 +19,7 @@ published month, loads only what is new, enforces data quality, and rebuilds the
 Rewritten automatically after every run.
 
 <!-- RESULTS:START -->
-_BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run 2026-11-08 19:05 UTC_
+_BTS on-time data 2024-09 to 2026-08 · 14,094,455 flights in silver · last run 2026-11-09 20:10 UTC_
 
 | Last 12 months | Value |
 |---|---|
